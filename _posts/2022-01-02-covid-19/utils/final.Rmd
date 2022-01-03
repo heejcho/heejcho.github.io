@@ -1,0 +1,355 @@
+---
+title: "Final project"
+author: "Heejeong Cho"
+date: "14/04/2021"
+output:
+  bookdown::pdf_document2:
+    toc: true
+email: heejeongc@gmail.com
+csl: final/apa_num.csl
+bibliography: final/bib.bib
+---
+
+\pagebreak
+
+```{r setup, include=FALSE}
+library(styler)
+library(tidyverse)
+library(magrittr)
+library(knitr)
+library(lubridate)
+library(geofacet)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, tidy = "styler")
+```
+
+# Introduction
+
+According to the provincial government, Ontario has experienced a rapid rise in COVID-19 confirmed cases in the most recent weeks, threatening the provinces's critical care capacity. Even though COVID-19 vaccination started last December in Canada, inoculation in Ontario has been slow, uneven and uncertain, which led to the provincial government to reimplement a variety of non-pharmaceutical interventions (NPIs), such as school closures and stay-at-home orders, to limit the spread of SARS-CoV-2 and ensure the number of severe COVID-19 cases did not exceed the capacity of the health system. Using public available data, this project aims to explore the COVID-19 situation in Canada, emphasizing our analysis to Ontario (largest province in terms of population). **Our analysis will be constraint from November 1st, 2020 to April 13th,2021**
+
+## Main questions {#quest}
+
+1. How does Canada (Ontario) compare to other countries (provinces) in terms of new COVID-19 infections and deaths? We compared: Canada vs USA and Mexico (North America), and Ontario vs rest of provinces.
+
+2. How did vaccination of Ontario long-term care (LTC) residents impact on mortality? We compared COVID-19 deaths between LTC and non-LTC residents.
+
+For Question 1, we used the John Hopkins repository [@dong2020interactive], which tracks COVID-19 reported cases and deaths in [**real time**](https://github.com/CSSEGISandData/COVID-19). Question 2 used the "COVID-19 Community Mobility Reports" (see [**here**](https://www.google.com/covid19/mobility/)), which reports chart movement trends over time by geography, across different categories of places such as retail and recreation and others. Finally, Question 3 was answered by using data from the provincial government (see [**here**](https://data.ontario.ca/dataset/status-of-covid-19-cases-in-ontario/resource/ed270bb8-340b-41f9-a7c6-e8ef587e6d11)), containing status of COVID-19 cases in Ontario, such as number of deaths for LTC and non-LTC residents.
+
+# Data Wrangling Plan
+
+## Question 1
+
+### Iteration 1
+
+*Phase 1*
+
+* Read the csv files into `R`.
+
+
+    + We have two csv's corresponding to infections and deaths per day.
+        
+* Determine if the data is `Tidy` and if not fix it.
+* Join infections and deaths into a single `tibble`.
+* Filter by countries (provinces) previously chosen in Section \@ref(quest)
+
+*Phase 2*
+
+```{r}
+confirmed_raw <- read_csv(paste0("https://raw.githubusercontent.com/", #read csv
+"CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/",
+"time_series_covid19_confirmed_global.csv"), col_types = cols())
+deaths_raw <- read_csv(paste0("https://raw.githubusercontent.com/",
+"CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/",
+"time_series_covid19_deaths_global.csv"), col_types = cols())
+confirmed_raw %>% select(1:6) %>% glimpse() 
+# death_raw %>% glimpse() same as confirmed
+```
+
+* The data is not in `Tidy` format. We only `glimpse` the first 6 columns due to space constraint (more than 400 columns).
+
+
+    + The column names contain dates.
+
+* We need to:
+
+
+    1. Remove columns.
+    2. Add a new column using iso3c notation. This was done using the libary `countrycode`.
+    3. **Note: Only for countries**. Sum provinces/states' infections and deaths numbers to get totals by country.
+    4. Pivot longer.
+    5. Convert date column to `date-time`.
+    6. Select uid's, date and infections (deaths) columns.
+      
+* Given that we have two `tibbles` with the same structure (infections and deaths), a function was created to accomplish the `Tidy` format.
+
+```{r}
+clean_jhd_to_long <- function(df, opt = "country") {
+  
+  if ( opt == "country"){
+    
+    df_str <- deparse(substitute(df)) #
+    var_str <- substr(df_str, 1, str_length(df_str) - 4)
+    
+
+    df %>%  #1
+      select(-`Province/State`,-Lat, -Long) %>% 
+      rename(country = `Country/Region`) %>% #2
+      mutate(iso3c = countrycode::countrycode(country,
+                                 origin = "country.name",
+                                 destination = "iso3c")) %>%
+      select(-country) %>%
+      group_by(iso3c) %>% #3
+      summarise_at(vars(-c(group_cols())), sum) %>% #4
+      pivot_longer(
+        -c(iso3c), 
+        names_to = "date_str", 
+        values_to = var_str
+      ) %>%
+      ungroup() %>% #5
+      mutate(date = mdy(date_str)) %>% #6
+      select(iso3c, date, !! sym(var_str)) %>% 
+      rename(country=iso3c)
+    
+  } else if ( opt == "province"){
+    
+    df_str <- deparse(substitute(df))
+    var_str <- substr(df_str, 1, str_length(df_str) - 4)
+    
+    df %>% 
+      select( -Lat, -Long) %>%
+      rename(country = `Country/Region`, province = `Province/State`) %>%
+      mutate(iso3c = countrycode::countrycode(country,
+                                 origin = "country.name",
+                                 destination = "iso3c")) %>%
+      select(-country) %>%
+      pivot_longer(
+        -c(iso3c,province), 
+        names_to = "date_str", 
+        values_to = var_str
+      ) %>%
+      mutate(date = mdy(date_str)) %>%
+      select(province,iso3c, date, !! sym(var_str)) %>% 
+      rename(country=iso3c)
+    
+  }
+}
+```
+
+
+```{r}
+tib_covid19_country <- clean_jhd_to_long(confirmed_raw) %>% #join both tibbles
+  full_join(clean_jhd_to_long(deaths_raw), by = c("country", "date")) %>% 
+  filter(country %in% c("CAN","MEX","USA")) # filter countries of interest
+tib_covid19_province <- clean_jhd_to_long(confirmed_raw, opt = "province") %>%
+  full_join(clean_jhd_to_long(deaths_raw, opt = "province"), 
+            by = c("country", "date","province")) %>% #filter provinces
+  filter(country == "CAN",!(province %in% c("Repatriated Travellers",
+                          "Diamond Princess","Grand Princess"))) %>% 
+  select(-country)
+# tib_covid19_country %>% glimpse() space constraint
+# tib_covid19_province %>% glimpse() 
+```
+
+* Data looks like it is `Tidy`. 
+
+
+    + The uid's are `country` (`province`) and 'date'.
+    + We checked that none of the uid's occur more than once.
+    
+```{r}
+tib_covid19_country %$% table(country, date) %>%.[.>1]
+# tib_covid19_province %$% table(province, date) %>%.[.>1] space constraint
+```
+
+### Iteration 2
+
+*Phase 1*
+
+* Infections and deaths are cumulative. We need to add new columns which will represent new daily numbers.
+* Check for anomalies in the data.
+
+*Phase 2*
+
+```{r}
+tib_covid19_country %<>%  group_by(country,date) %>% 
+  summarise_at(vars(-group_cols()), sum) %>%#calculate new infections and deaths
+  mutate(new_confirmed = confirmed - lag(x = confirmed,n = 1, default = 0),
+         new_deaths = deaths - lag(x = deaths, n = 1, default = 0))
+```
+
+We used the same code for provinces `tibble`, only difference is in `group_by`.
+
+```{r include=FALSE}
+tib_covid19_province %<>%  group_by(province,date) %>% 
+  summarise_at(vars(-group_cols()), sum) %>% 
+  mutate(new_confirmed = confirmed - lag(x = confirmed,n = 1, default = 0),
+         new_deaths = deaths - lag(x = deaths, n = 1, default = 0))
+```
+
+```{r}
+#tib_covid19_country %>% summary() # same as province
+tib_covid19_province %>% summary() # check for anomalies
+```
+
+`tib_covid19_province` has negative values for new infections and deaths. This is because the cumulative number for a specific date was greater than the previous date. We need to fix this by changing those dates to 0. `tib_covid19_country` did not have this problem (data not shown).
+
+```{r}
+tib_covid19_province %<>% 
+  mutate(new_confirmed = ifelse(new_confirmed < 0,0,new_confirmed),
+         new_deaths = ifelse(new_deaths < 0,0,new_deaths))
+```
+
+
+## Question 2
+
+### Iteration 1
+
+*Phase 1*
+
+* Read the csv files into `R`.
+
+
+    + We have two csv's corresponding to infections and deaths per day.
+        
+* Determine if the data is `Tidy` and if not fix it.
+
+*Phase 2*
+
+```{r}
+ontario_df <- read_csv("final/ontario_covid.csv",col_types =cols())
+ontario_df %>% select(1:6) %>%  glimpse()
+```
+
+* Data is not `Tidy`. We need to:
+
+
+    1. Rename columns.
+    2. Convert date column to `date-time`.
+    3. Create column with new deaths for both categories.
+    4. Select date and deaths (LTC and non-LTC)
+    5. Pivot longer
+
+```{r}
+
+tib_covid19_ont <- ontario_df %>% #1
+  rename(deaths= Deaths, ltc_deaths = `Total LTC Resident Deaths`,
+         date=`Reported Date`) %>% mutate(date = ymd(date)) %>% #2
+  mutate(new_deaths = deaths - lag(x = deaths, n = 1, order_by = date, 
+                                   default = 0), #3
+         new_ltc_deaths = ltc_deaths - lag(x = ltc_deaths, n = 1, 
+                                             order_by = date, default = 0)) %>%
+  select(date,new_deaths,new_ltc_deaths) %>% #4
+  pivot_longer(cols = -date, values_to = 'new_deaths',names_to = 'category') #5
+
+# tib_covid19_ont %>% glimpse() space constraint
+# tib_covid19_ont %$% table(date,category) %>%.[.>1] space constraint
+
+```
+* Data looks `Tidy`.
+
+### Iteration 2
+
+*Phase 1* 
+
+* Check for anomalies.
+
+*Phase 2*
+
+```{r}
+tib_covid19_ont %>% summary() #check for anomalies
+```
+We have the same issue as before, so we need to correct it.
+
+```{r}
+tib_covid19_ont %<>% 
+  mutate(new_deaths = ifelse(new_deaths < 0,0,new_deaths))
+```
+
+
+# Question 1
+
+To answer his question, we used a time-series plot. In order to take population^[This information comes from Wikipedia] into account in our comparison, we calculated infections (deaths) per million and added a 7-day rolling average  (`zoo` library) to smooth out short-term fluctuations. Deaths time-series plot can be found in the Appendix. `scales` library was used to format some axis labels. 
+
+```{r}
+pop <- read_csv("final/tidy_pop.csv")
+```
+
+
+```{r}
+theme <- theme_minimal() + theme(plot.title = element_text(size=9), 
+                                 plot.subtitle = element_text(size=8),
+        axis.title.x = element_text(size=7,hjust = .5), 
+        axis.title.y = element_text(size=7,hjust = .5),
+        axis.text.x = element_text(angle=90,size = 5),
+        axis.text.y = element_text(angle=90,size = 5),
+        strip.text.x = element_text(size = 4))
+```
+
+
+```{r fig.height=4}
+tib_covid19_country %>% filter("2021-04-13" >= date & date >= "2020-11-01") %>% 
+  left_join(pop,by=c("country"="iso3c")) %>% group_by(country) %>%
+  mutate(new_confirmed_07da = zoo::rollmean(new_confirmed, k = 7,fill = NA)) %>%
+  ungroup() %>% mutate(new_confirmed = 1e6*new_confirmed/population,
+                    new_confirmed_07da = 1e6*new_confirmed_07da/population) %>% 
+  ggplot(aes(x=date,y=new_confirmed)) +  geom_col(alpha=.4, linetype=0) +
+  geom_line(aes(y=new_confirmed_07da),color="red",size = .7) +
+  facet_wrap(~country,scales = "free") +
+  labs(title = "Figure 1:Canada, Mexico and USA new COVID-19 cases per million", 
+                subtitle = paste0("7-day rolling average between ", 
+                                  "2020-11-01" ," and ", "2021-04-13"),
+                y = "New Cases",
+                x = "Date") + theme + 
+  scale_x_date(date_labels="%Y-%m-%d",date_breaks = "1 month") + 
+  scale_y_continuous(label = scales::comma)
+```
+
+Figure 1 shows new COVID-19 cases per million in the sequence of Canada, Mexico, and USA. As shown, Canada had the highest level of new cases, while Mexico recorded the lowest. 7-day rolling average rates in recent days looks similar between USA and Canada, which is consistent with different news report [@cbcnews_2021]. To compare provinces, we used the raw numbers for new infections (deaths) because our purpose is to check trends. We used the library `geofacet` to accommodate the provinces according to their location. Figure 2 displays new COVID-19 cases in Canada across all territories and provinces. The results of each facet shows that the trends have increased in recent days for Ontario, Alberta and Saskatchewan. As observed, Ontario has reached the second wave peak in the most recent days.
+
+```{r fig.height=4}
+tib_covid19_province %>% filter("2021-04-13" >= date & date >= "2020-11-01") %>% 
+  group_by(province) %>%
+  mutate(new_confirmed_07da = zoo::rollmean(new_confirmed, k = 7,fill = NA)) %>%
+  ungroup() %>%
+  ggplot(aes(x=date,y=new_confirmed)) +
+  geofacet::facet_geo(~ province,
+            grid="ca_prov_grid1",
+            scales= "free") +
+  geom_col(alpha = .4, linetype = 0) +
+  geom_line(aes(y = new_confirmed_07da),color="red",size = .7) +
+  labs(title = "Figure 2: Canada new COVID-19 cases", 
+                subtitle = paste0("7-day rolling average between ", 
+                                  "2020-11-01" ," and ", "2021-04-13"),
+                y = "New Cases",
+                x = "Date")  + 
+  theme + scale_x_date(date_labels="%Y-%m-%d",date_breaks = "2 month")+
+  scale_y_continuous(breaks= scales::pretty_breaks(),label = scales::comma)
+```
+
+# Question 2
+
+```{r fig.height=4}
+tib_covid19_ont %>% filter("2021-04-13" >= date & date >= "2020-11-01") %>% 
+  ggplot(aes(fill=category,y=new_deaths,x=date)) +
+  geom_bar(position = "stack",stat="identity",linetype=0, alpha = .6) +
+  scale_x_date(date_labels="%Y-%m-%d",date_breaks = "1 month") +
+  labs(title = "Figure 3: Daily deaths by COVID-19 in Ontario", 
+       subtitle = paste0("Between ", "2020-11-01",  " and ", "2021-04-13"),
+       y = "New Deaths",
+       x = "Date") + theme +
+  scale_fill_discrete(name= "",
+                      labels= c("Non-LTC",
+                                "LTC")) + 
+  geom_vline(xintercept=as.numeric(as.Date("2021-02-23")), linetype=2)+
+   geom_text(aes(x=as.Date("2021-03-07"), label="Feb 23rd", y=100))
+```
+
+Figure 3 shows COVID-19 daily deaths between LTC residents versus overall population. The results indicate that the rate of daily deaths in LTC residents have reduced significantly since February 23rd. This date was selected because 92% percent of these residents had received at least one dose of a COVID-19 vaccine [@table_2021].
+
+
+# Discussion/Conclusion 
+
+In this project, the changes in COVID-19 cases between the dates of November 1, 2020 to April 13, 2021 were measured both globally, and nationally. Three main Countries including Canada, Mexico, and USA were used to take global measurement of new COVID-19 cases on a seven-day rolling average. Comparing the results of each Country’s graph, it was observed that in the period of late March 2021, Canada had the highest level of new COVID-19 cases out of all three Countries, Mexico being the lowest. The potential reason for these varying results during this period could be due to restricted testing. Compared to Canada and USA, Mexico lacks the facility and resources to provide COVID-19 tests for the major population. Along with this, the high spikes shown in the graph may indicate limitations, as data anomalies may exist. This anomalies should be corrected in the Data wrangling plan.
+
+
+# References
+

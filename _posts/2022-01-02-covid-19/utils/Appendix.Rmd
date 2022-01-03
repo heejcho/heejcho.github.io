@@ -1,0 +1,165 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+# Appendix
+
+```{r setup, include=FALSE}
+library(styler)
+library(tidyverse)
+library(magrittr)
+library(knitr)
+library(lubridate)
+library(geofacet)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, tidy = "styler")
+ontario_df <- read_csv("final/ontario_covid.csv",col_types =cols())
+confirmed_raw <- read_csv(paste0("https://raw.githubusercontent.com/", #read csv
+"CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/",
+"time_series_covid19_confirmed_global.csv"), col_types = cols())
+deaths_raw <- read_csv(paste0("https://raw.githubusercontent.com/",
+"CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/",
+"time_series_covid19_deaths_global.csv"), col_types = cols())
+
+clean_jhd_to_long <- function(df, opt = "country") {
+  
+  if ( opt == "country"){
+    
+    df_str <- deparse(substitute(df)) #
+    var_str <- substr(df_str, 1, str_length(df_str) - 4)
+    
+
+    df %>%  #1
+      select(-`Province/State`,-Lat, -Long) %>% 
+      rename(country = `Country/Region`) %>% #2
+      mutate(iso3c = countrycode::countrycode(country,
+                                 origin = "country.name",
+                                 destination = "iso3c")) %>%
+      select(-country) %>%
+      group_by(iso3c) %>% #3
+      summarise_at(vars(-c(group_cols())), sum) %>% #4
+      pivot_longer(
+        -c(iso3c), 
+        names_to = "date_str", 
+        values_to = var_str
+      ) %>%
+      ungroup() %>% #5
+      mutate(date = mdy(date_str)) %>% #6
+      select(iso3c, date, !! sym(var_str)) %>% 
+      rename(country=iso3c)
+    
+  } else if ( opt == "province"){
+    
+    df_str <- deparse(substitute(df))
+    var_str <- substr(df_str, 1, str_length(df_str) - 4)
+    
+    df %>% 
+      select( -Lat, -Long) %>%
+      rename(country = `Country/Region`, province = `Province/State`) %>%
+      mutate(iso3c = countrycode::countrycode(country,
+                                 origin = "country.name",
+                                 destination = "iso3c")) %>%
+      select(-country) %>%
+      pivot_longer(
+        -c(iso3c,province), 
+        names_to = "date_str", 
+        values_to = var_str
+      ) %>%
+      mutate(date = mdy(date_str)) %>%
+      select(province,iso3c, date, !! sym(var_str)) %>% 
+      rename(country=iso3c)
+    
+  }
+}
+
+tib_covid19_country <- clean_jhd_to_long(confirmed_raw) %>% #join both tibbles
+  full_join(clean_jhd_to_long(deaths_raw), by = c("country", "date")) %>% 
+  filter(country %in% c("CAN","MEX","USA")) # filter countries of interest
+tib_covid19_province <- clean_jhd_to_long(confirmed_raw, opt = "province") %>%
+  full_join(clean_jhd_to_long(deaths_raw, opt = "province"), 
+            by = c("country", "date","province")) %>% #filter provinces
+  filter(country == "CAN",!(province %in% c("Repatriated Travellers",
+                          "Diamond Princess","Grand Princess"))) %>% 
+  select(-country)
+
+tib_covid19_country %<>%  group_by(country,date) %>% 
+  summarise_at(vars(-group_cols()), sum) %>%#calculate new infections and deaths
+  mutate(new_confirmed = confirmed - lag(x = confirmed,n = 1, default = 0),
+         new_deaths = deaths - lag(x = deaths, n = 1, default = 0))
+
+tib_covid19_province %<>%  group_by(province,date) %>% 
+  summarise_at(vars(-group_cols()), sum) %>% 
+  mutate(new_confirmed = confirmed - lag(x = confirmed,n = 1, default = 0),
+         new_deaths = deaths - lag(x = deaths, n = 1, default = 0))
+
+tib_covid19_province %<>% 
+  mutate(new_confirmed = ifelse(new_confirmed < 0,0,new_confirmed),
+         new_deaths = ifelse(new_deaths < 0,0,new_deaths))
+
+tib_covid19_ont <- ontario_df %>% #1
+  rename(deaths= Deaths, ltc_deaths = `Total LTC Resident Deaths`,
+         date=`Reported Date`) %>% mutate(date = ymd(date)) %>% #2
+  mutate(new_deaths = deaths - lag(x = deaths, n = 1, order_by = date, 
+                                   default = 0), #3
+         new_ltc_deaths = ltc_deaths - lag(x = ltc_deaths, n = 1, 
+                                             order_by = date, default = 0)) %>%
+  select(date,new_deaths,new_ltc_deaths) %>% #4
+  pivot_longer(cols = -date, values_to = 'new_deaths',names_to = 'category') #5
+
+tib_covid19_ont %<>% 
+  mutate(new_deaths = ifelse(new_deaths < 0,0,new_deaths))
+
+pop <- read_csv("final/tidy_pop.csv")
+
+t=tib_covid19_country %>% filter("2021-04-13" >= date & date >= "2020-11-01") %>% 
+  left_join(pop,by=c("country"="iso3c")) %>% group_by(country) %>%
+  mutate(new_confirmed_07da = zoo::rollmean(new_confirmed, k = 7,fill = NA)) %>%
+  ungroup()
+theme <- theme_minimal() + theme(plot.title = element_text(size=9), 
+                                 plot.subtitle = element_text(size=8),
+        axis.title.x = element_text(size=7,hjust = .5), 
+        axis.title.y = element_text(size=7,hjust = .5),
+        axis.text.x = element_text(angle=90,size = 5),
+        axis.text.y = element_text(angle=90,size = 5),
+        strip.text.x = element_text(size = 4))
+```
+
+
+```{r}
+tib_covid19_country  %>% filter("2021-04-13" >= date & date >= "2020-11-01") %>% 
+  left_join(pop,by=c("country"="iso3c")) %>% group_by(country) %>%
+  mutate(new_death_07da = zoo::rollmean(new_deaths, k = 7,fill = NA)) %>%
+  ungroup() %>% mutate(new_deaths = 1e6*new_deaths/population,
+                    new_death_07da = 1e6*new_death_07da/population) %>%
+  ggplot(aes(x=date,y=new_deaths)) + 
+  geom_line(aes(y=new_death_07da),color="red",size = .7) +
+  geom_col(alpha=.4, linetype=0) + 
+  facet_wrap(~country,scales = "free") + 
+  labs(title = "Canada, Mexico and USA new COVID-19 deaths per million", 
+                subtitle = paste0("7-day rolling average between ", 
+                                  "2020-11-01" ," and ", "2021-04-13"),
+                y = "New Deaths",
+                x = "Date") + theme + scale_x_date(date_labels="%Y-%m-%d",
+                                                   date_breaks = "1 month")+ 
+  scale_y_continuous(label = scales::comma)
+```
+
+```{r}
+tib_covid19_province %>% filter("2021-04-13" >= date & date >= "2020-11-01") %>% 
+  group_by(province) %>%
+  mutate(new_deaths_07da = zoo::rollmean(new_deaths, k = 7,fill = NA)) %>%
+  ungroup() %>%
+  ggplot(aes(x=date,y=new_deaths)) +
+  geofacet::facet_geo(~ province,
+            grid="ca_prov_grid1",
+            scales= "free") +
+  geom_col(alpha = .4, linetype = 0) +
+  geom_line(aes(y = new_deaths_07da),color="red",size = .7) +
+  labs(title = "Canada new COVID-19 deaths", 
+                subtitle = paste0("7-day rolling average between ", 
+                                  "2020-11-01" ," and ", "2021-04-13"),
+                y = "New Deaths",
+                x = "Date")  + 
+  theme + scale_x_date(date_labels="%Y-%m-%d",date_breaks = "2 month")+
+  scale_y_continuous(breaks= scales::pretty_breaks(),label = scales::comma)
+```

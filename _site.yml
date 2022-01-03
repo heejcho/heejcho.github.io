@@ -1,0 +1,13 @@
+name: "personal_website"
+title: "Heej Cho"
+description: "Heej Cho"
+output_dir: "_site"
+favicon: "HC"
+theme: theme.css
+navbar:
+  right:
+    - text: "Home"
+      href: index.html
+    - text: "About"
+      href: about.html
+output: distill::distill_article

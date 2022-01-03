@@ -1,0 +1,36 @@
+---
+title: "Mac Get On Track (Mac G.O.T.)"
+description: |
+  The philosophy behind this project is to promote healthy eating that supports brain health.An app (both iOS and Android) was created to detail different paleo diet oriented recipes for meals with ingredients that are proven to improve brain health. 
+author:
+  - name: Heej Cho
+  - name: Alicia Carey
+  - name: Annaika Manamperi
+  - name: Madison Quirk
+date: 2017-04-03
+output:
+  distill::distill_article:
+    self_contained: false
+    toc: true
+    toc_depth: 3
+draft: false
+preview: utils/app.jpg
+
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# About
+
+Our project is called Mac Get On Track (Mac G.O.T.). We operate under this title because we are a group of McMaster (Mac) students who wanted to provide a positive influence for people to take control of their eating habits to prevent the manifestation of various mental illnesses. The philosophy behind this project is to promote healthy eating that supports brain health. We accomplished this by creating mild-paleo diet oriented recipes for meals with ingredients that are proven to improve brain health. Each recipe has a goal of enhancing one or more areas of brain health. For example, omega-3 fatty acids (DHA, EPA) that are found in organic or wild fish reduce the risk of depression, schizophrenia, and Alzheimer’s disease among other things. 
+
+Our target audience is wide-ranging, and we distributed the project over many mediums. It is intended for audiences of all ages, gender, ethnicity, and socioeconomic status. This criteria was met by preparing recipes that use ingredients that are familiar to many cultures. For example, one of our recipes was Chicken Adobo. This dish is a popular dish and cooking process in Philippine cuisine that involves meat, seafood, or vegetables marinated in vinegar, soy sauce, and garlic, which is browned in oil, and simmered in the marinade. In addition, we used ingredients that are cost-friendly and easy to work with to make our recipes accessible to a larger audience. Especially since we are a McMaster based initiative, students make up a large proportion of our audience. Meals that can be prepared quickly are in-demand.
+
+This project was created with the assistance of various professionals in different fields. We worked with two Canadian dieticians - Shaistha Zaheeruddin and Amanda Li. Shaistha is founder of Modest Nutrition. Amanda Li is a registered dietician and chef who worked with us throughout the entire semester, constantly providing us with recipes and ideas. She is the founder of Nutrition.Wellness.Simplified where she provides recipes, consultations, and classes to the general public. She is also a professor at George Brown College where she teaches hospitality. 
+
+These nutritionists assisted us in creating meals that contain essential nutrients for brain health. In addition, Amanda offered to help prepare these meals. We attempted to collaborate with a neurologist throughout the entire term to help us understand how the brain functions under the influence of different diets, as well as how changes in diet can contribute to pathophysiology and/or treating brain abnormalities. However, we were unable to ascertain the assistance of a neurologist because of conflicting schedules. Peter Hoang, a McMaster student in Software Engineering helped us advertise our project to find a software engineering student that developed our MGOT App. Jenell Hogg, a software engineer at McMaster, helped us to create an App that is available on the Google Play store and App Store.  We collaborated with Harman Nahal, a videographer, to assist us in documenting the MacEngaged process. For example, she videotaped our high school visit. Annaika Manamperi, a member of our group, videotaped the interview with Amanda Li that is available on YouTube and our Facebook page. Alicia Carey, a member of our group, took pictures of our Ronald McDonald House Hamilton visit and the pictures of the snacks for the App and Facebook. We released our project through our Facebook page, Hamilton Eat Local blog, YouTube, and our App. Looking forward; we are in contact with The Silhouette (McMaster Newspaper), The Hamilton Spectator, school-run journals (eg. Meducator and McMaster Undergraduate Journal of Law and Politics). 
+
+For more information, you can visit our [Facebook page](https://www.facebook.com/macgetontrack) and our [Youtube  chanel](https://www.youtube.com/channel/UCDUss9nKvV6g7M2MdFimY-w). All our recipes can be found [here](utils/recipes.pdf)
