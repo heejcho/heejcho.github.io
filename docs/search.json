@@ -5,14 +5,14 @@
       "title": "About Heej",
       "author": [],
       "contents": "\n\nMy name is Heejeong Cho (Heej: 조희정), and this is my personal website. On this site, you will be able to find some of my projects completed during my time at McMaster University.\nCurrently, I am a Personal Banking Associate at TD Canada Trust, where I provide professional financial guidance to clients on personal banking products, investments and services. I am very passionate about data science in general, and the use of R in the context of the use of health data for decision-making. I enjoy using (and keep learning) tidyverse to import data into R, get it into the most useful structure, transform it, visualise it and potentially model it.\n\n\n\n",
-      "last_modified": "2022-01-03T23:04:51+00:00"
+      "last_modified": "2022-01-03T23:32:02+00:00"
     },
     {
       "path": "index.html",
       "title": "Heej's Website",
       "author": [],
       "contents": "\n\n\n\n",
-      "last_modified": "2022-01-03T23:04:52+00:00"
+      "last_modified": "2022-01-03T23:32:02+00:00"
     }
   ],
   "collections": ["posts/posts.json"]
