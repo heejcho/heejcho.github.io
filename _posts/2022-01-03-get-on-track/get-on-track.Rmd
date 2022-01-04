@@ -1,7 +1,7 @@
 ---
 title: "Mac Get On Track (Mac G.O.T.)"
 description: |
-  The philosophy behind this project is to promote healthy eating that supports brain health.An app (both iOS and Android) was created to detail different paleo diet oriented recipes for meals with ingredients that are proven to improve brain health. 
+  The philosophy behind this project was to promote a healthy diet plan that supports brain health. An app (both iOS and Android) was created to provide detailed information on the benefits of neo-paleo diet on brain health. In the app, users can find dietitian approved recipes that can be used to create a personal neo-paleo meal plan.  
 author:
   - name: Heej Cho
   - name: Alicia Carey

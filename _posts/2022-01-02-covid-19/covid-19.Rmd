@@ -1,7 +1,7 @@
 ---
 title: "Exploring the COVID-19 pandemic in Ontario "
 description: |
-  Using tidyverse, this post aims to explore the COVID-19 situation in Canada, emphasizing our analysis to Ontario (largest province in terms of population). Using publicly data from the Ontario goverment, we specificly explored if vaccination of Ontario long-term care (LTC) residents had an impact on mortality in the first months of 2021.
+  Using tidyverse, this post aims to explore the COVID-19 situation in Canada, emphasizing our analysis to Ontario's current population. Using publicly data from the Ontario goverment, we specifically explored if vaccination of Ontario long-term care (LTC) residents had an impact on mortality in the first months of 2021.
 author:
   - name: Heej Cho
 date: 2021-04-14
